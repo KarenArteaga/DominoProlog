@@ -66,14 +66,13 @@ primerTiro(1, T):-
 % Llama al predicado jugar(1) para cambiar de turno
 jugar(0):-
 	nb_getval(numFichas, Num),
-	write("Tienes "), write(Num), write(" fichas"), nl,
 	((Num < 1, write("GANASTE!!!!!!!! :)"), nl, !);
 	(nb_getval(tablero, Tab),
 	length(Tab, Len),
 	write("el tablero se ve así: "), nl,
-	write("--"), imprimirLinea(Len), write("--"), nl,
+	write("----"), imprimirLinea(Len), write("----"), nl,
 	write("|"), write(Tab), write("|"), nl,
-	write("--"), imprimirLinea(Len), write("--"), nl,
+	write("----"), imprimirLinea(Len), write("----"), nl,
 	nl, write("¿Cuántas comió el oponente?"), nl,
 	read(N),
 	write("Escribe -1 si el oponente tiró en la cabeza, 0 si pasó, o 1 si tiró en la cola"), nl,
@@ -108,9 +107,11 @@ jugar(1):-
 % Caso 0: Cuando el oponente no tira (pasa)
 % Actualiza el número de fichas del oponente
 oponenteTiro(N, 0):-
+	comprobarEmpate(),
 	nb_getval(numFichasOp, M),
 	NuevoNum is N + M,
-	nb_setval(numFichasOp, NuevoNum).
+	nb_setval(numFichasOp, NuevoNum),
+	nb_setval(empate, 1).
 
 % Caso -1 y 1: Cuando el oponente tira una ficha en la cabeza(-1) o cola(1) del tablero
 % Pide la ficha que tiró el oponente
@@ -126,6 +127,7 @@ oponenteTiro(N, V):-
 	nb_setval(fichasOp, NOp),
 	nb_getval(numFichasOp, M),
 	NuevoNum is (N + M - 1),
+	nb_setval(empate, 0),
 	nb_setval(numFichasOp, NuevoNum).
 
 cambiarFicha(F, 1, NF):-
@@ -182,13 +184,16 @@ tirar:-
 	last(L, L1),
 	encontrar(Fichas, L1, D, PF), % PF es posibles fichas
 	((PF == [], 
-		comer(Fichas, 7));
+		comer(Fichas, NumFichas));
 	(length(PF, 1),
+		write("Posibles tiros: "), write(PF), nl,
 	 	cabeza(PF, F), 
 	 	eliminar(F, Fichas, NuevasFichas), 
 	 	nb_setval(fichas, NuevasFichas), 
 	 	acomodar(2, F), 
-	 	nb_setval(numFichas, NuevoNum));
+	 	nb_setval(empate, 0),
+	 	nb_setval(numFichas, NuevoNum),
+	 	nl, write("Mejor Tiro: "), write(F), nl);
 	(write("Posibles tiros: "), write(PF), nl,
 		nb_getval(tablero, Tablero),
 		% nb_getval(numFichas, Num),
@@ -196,9 +201,10 @@ tirar:-
 		% Profundidad is Num + NumOp,
 		nb_getval(fichasOp, FichasOp),
 		podaAlfaBeta(Tablero, 3, FichasOp, Fichas, Fichas, 1, -10000,  10000, MejorTiro, Valor), 
-		write("Valor de la rama: "), write(Valor), nl,
-		write("MejorTiro: "), write(MejorTiro), nl,
+		% write("Valor de la rama: "), write(Valor), nl,
+		nl, write("MejorTiro: "), write(MejorTiro), nl,
 		eliminar(MejorTiro, Fichas, NuevasFichas), nb_setval(fichas, NuevasFichas),
+		nb_setval(empate, 0),
 		nb_setval(numFichas, NuevoNum),
 		acomodar(2, MejorTiro),!
 		)).
@@ -215,9 +221,15 @@ tirar:-
 % Actualiza la cantidad de fichas del jugador 
 % Llama al predicado tirar 
 comer(A, L):-
-	write("Escribe 1 si hay fichas para comer o 0 si ya se acabaron las fichas"), nl,
-	read(Valor),
-	((Valor =:= 0, write("Vas a pasar"), nl, jugar(0));
+	% write("Escribe 1 si hay fichas para comer o 0 si ya se acabaron las fichas"), nl,
+	% read(Valor),
+	nb_getval(numFichasOp, NumFichasOp),
+	nb_getval(fichasOp, FichasOp),
+	length(FichasOp, Len),
+	Valor is Len - NumFichasOp,
+	((Valor =:= 0, write("Vas a pasar"), nl,
+	nb_getval(empate, Empate),
+	comprobarEmpate(Empate));
 	(write("¿Qué ficha comiste?"), nl,
 	read(F),
 	nb_setval(fichas, [F|A]),
@@ -226,7 +238,15 @@ comer(A, L):-
 	nb_setval(fichasOp, NOp),
 	LN is (L + 1),
 	nb_setval(numFichas, LN),
+	nl, write("Tienes "), write(LN), write(" fichas"), nl,
 	tirar())).
+
+% Comprueba si el jugador anterior pasó y si falla si sí pasó
+comprobarEmpate(0):-
+	jugar(0).
+
+comprobarEmpate(1)
+	write("EMPATARON!!!!"), nl, fail.
 
 % ----------------------------------------------------- MINIMAX Y FUNCIÓN HEURÍSTICA ------------------------------------------------------------------------------------
 
@@ -289,8 +309,7 @@ podaAlfaBeta(_, 0, FichasOcultas, MisFichas, _, _, _, _, _, Valor):-
 % obtiene el número de fichas sobrantes del jugador en negativo y lo asigna como valor del tiro
 podaAlfaBeta(_, _, [], MisFichas, _, _, _, _, _, Valor):-
 	length(MisFichas, N2),
-	write("Perdiste"), nl,
-	Valor is -N2, write(Valor), nl, !.
+	Valor is -N2, !.
 
 % Recibe distintos parámetros 
 % - el estado actual del tablero, una profundidad delimitada por el usuario, 
@@ -416,7 +435,7 @@ cabeza([A|_], A).
 
 imprimirLinea(0):- !.
 imprimirLinea(N):-
-	write("-----"),
+	write("-------"),
 	NN is N - 1,
 	imprimirLinea(NN).
 
