@@ -21,8 +21,6 @@ main:-
 	write("Escribe 0 si el oponente inició el juego o 1 si tu lo iniciaste: "), nl,
 	read(Prim),
 	primerTiro(Prim, T),
-	nb_getval(tablero, Tab),
-	write(Tab), nl,
 	jugar(T).
 
 % primerTiro(i, o): asigna el tiro inicial y cambia el jugador 
