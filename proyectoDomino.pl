@@ -243,9 +243,10 @@ comer(A, L):-
 
 % Comprueba si el jugador anterior pasó y si falla si sí pasó
 comprobarEmpate(0):-
+	nb_setval(empate, 1),
 	jugar(0).
 
-comprobarEmpate(1)
+comprobarEmpate(1):-
 	write("EMPATARON!!!!"), nl, fail.
 
 % ----------------------------------------------------- MINIMAX Y FUNCIÓN HEURÍSTICA ------------------------------------------------------------------------------------
